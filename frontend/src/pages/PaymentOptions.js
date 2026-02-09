@@ -16,7 +16,7 @@ function PaymentOptions() {
   );
 
   const handlePay = async () => {
-    if (!method) return alert("Please select a payment method.");
+    if (!method) return; 
     if (!user) return navigate("/login");
 
     const payload = {
@@ -32,24 +32,17 @@ function PaymentOptions() {
     };
 
     try {
-      // 1. Send Order to Backend
       const res = await api.post("/orders", payload);
-      
-      // ✅ FIX: Extract the 'id' from the returned Order object
-      // The backend returns { id: 3, userId: 1, ... }
       const orderId = res.data.id; 
 
       const orderSummary = {
         items: cartItems,
         total,
         method: method,
-        orderId: orderId // Now this is '3' instead of the whole object
+        orderId: orderId 
       };
 
-      // 2. Clear Cart and Navigate
       clearCart();
-      
-      // We go to Success page first, which then forwards the state to Orderpage
       navigate("/order-success", { state: orderSummary });
 
     } catch (err) {
@@ -60,46 +53,63 @@ function PaymentOptions() {
 
   return (
     <div style={styles.pageWrapper}>
+      <div style={styles.ambientGlow}></div>
+      
       <div style={styles.container}>
+        <div style={styles.lockIcon}>🛡️</div>
         <h2 style={styles.title}>Secure Checkout</h2>
-        <p style={styles.subtitle}>Choose your preferred payment method</p>
+        <p style={styles.subtitle}>Select your preferred settlement method</p>
 
         <div style={styles.methodList}>
+          {/* CARD OPTION */}
           <div 
             style={{
               ...styles.methodCard,
-              borderColor: method === "CARD" ? "#000" : "#eee",
-              background: method === "CARD" ? "#fcfcfc" : "#fff"
+              borderColor: method === "CARD" ? "#3b82f6" : "rgba(255,255,255,0.05)",
+              background: method === "CARD" ? "rgba(59, 130, 246, 0.1)" : "rgba(255,255,255,0.02)",
+              transform: method === "CARD" ? "scale(1.02)" : "scale(1)"
             }}
             onClick={() => setMethod("CARD")}
           >
             <div style={styles.iconBox}>💳</div>
             <div style={styles.methodInfo}>
-              <span style={styles.methodTitle}>Credit / Debit Card</span>
+              <span style={styles.methodTitle}>Digital Card</span>
               <span style={styles.methodDesc}>Visa, Mastercard, AMEX</span>
+            </div>
+            <div style={styles.radioContainer}>
+                <div style={styles.radioOuter}>
+                    {method === "CARD" && <div style={styles.radioInner} />}
+                </div>
             </div>
           </div>
 
+          {/* COD OPTION */}
           <div 
             style={{
               ...styles.methodCard,
-              borderColor: method === "COD" ? "#000" : "#eee",
-              background: method === "COD" ? "#fcfcfc" : "#fff"
+              borderColor: method === "COD" ? "#3b82f6" : "rgba(255,255,255,0.05)",
+              background: method === "COD" ? "rgba(59, 130, 246, 0.1)" : "rgba(255,255,255,0.02)",
+              transform: method === "COD" ? "scale(1.02)" : "scale(1)"
             }}
             onClick={() => setMethod("COD")}
           >
             <div style={styles.iconBox}>🚚</div>
             <div style={styles.methodInfo}>
               <span style={styles.methodTitle}>Cash on Delivery</span>
-              <span style={styles.methodDesc}>Pay when you receive your order</span>
+              <span style={styles.methodDesc}>Settle balance upon arrival</span>
+            </div>
+            <div style={styles.radioContainer}>
+                <div style={styles.radioOuter}>
+                    {method === "COD" && <div style={styles.radioInner} />}
+                </div>
             </div>
           </div>
         </div>
 
         <div style={styles.summaryBox}>
           <div style={styles.totalRow}>
-            <span>Grand Total</span>
-            <span>Rs {total.toLocaleString()}</span>
+            <span style={styles.totalLabel}>Grand Total</span>
+            <span style={styles.totalValue}>Rs {total.toLocaleString()}</span>
           </div>
         </div>
 
@@ -107,32 +117,101 @@ function PaymentOptions() {
           onClick={handlePay} 
           style={{
             ...styles.payBtn,
-            opacity: method ? 1 : 0.6,
-            cursor: method ? 'pointer' : 'not-allowed'
+            background: method ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' : 'rgba(255,255,255,0.05)',
+            color: method ? '#fff' : '#475569',
+            cursor: method ? 'pointer' : 'not-allowed',
+            boxShadow: method ? '0 10px 25px -5px rgba(37, 99, 235, 0.4)' : 'none'
           }}
           disabled={!method}
         >
-          Complete Purchase
+          {method ? "Finalize Transaction" : "Select Payment Method"}
         </button>
+
+        <div style={styles.securityFooter}>
+            <span style={styles.secureBadge}>✓ SSL Encrypted</span>
+            <span style={styles.secureBadge}>✓ Verified Merchant</span>
+        </div>
       </div>
     </div>
   );
 }
 
 const styles = {
-  pageWrapper: { minHeight: '100vh', background: '#f8f9fa', display: 'flex', justifyContent: 'center', padding: '60px 20px' },
-  container: { width: '100%', maxWidth: '480px', background: '#fff', borderRadius: '24px', padding: '40px', boxShadow: '0 10px 40px rgba(0,0,0,0.05)', height: 'fit-content' },
-  title: { fontSize: '28px', fontWeight: '800', margin: '0 0 8px 0', letterSpacing: '-0.5px' },
-  subtitle: { color: '#666', marginBottom: '32px', fontSize: '15px' },
-  methodList: { display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '32px' },
-  methodCard: { display: 'flex', alignItems: 'center', padding: '18px', border: '2px solid', borderRadius: '16px', cursor: 'pointer', transition: '0.2s ease-in-out', justifyContent: 'space-between' },
-  iconBox: { fontSize: '24px', marginRight: '16px', background: '#f0f0f0', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '12px' },
+  pageWrapper: { 
+    minHeight: '100vh', 
+    background: '#0f172a', 
+    display: 'flex', 
+    justifyContent: 'center', 
+    alignItems: 'center',
+    padding: '100px 20px 60px',
+    position: 'relative',
+    overflow: 'hidden'
+  },
+  ambientGlow: {
+    position: 'absolute', top: '20%', left: '50%', transform: 'translate(-50%, -50%)',
+    width: '60vw', height: '60vh',
+    background: 'radial-gradient(circle, rgba(59, 130, 246, 0.05) 0%, transparent 70%)',
+    zIndex: 0
+  },
+  container: { 
+    width: '100%', 
+    maxWidth: '460px', 
+    background: 'rgba(30, 41, 59, 0.6)', 
+    backdropFilter: 'blur(20px)',
+    borderRadius: '32px', 
+    padding: '40px', 
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+    height: 'fit-content',
+    position: 'relative',
+    zIndex: 1,
+    textAlign: 'center'
+  },
+  lockIcon: { fontSize: '40px', marginBottom: '16px' },
+  title: { fontSize: '28px', fontWeight: '800', margin: '0 0 8px 0', color: '#fff', letterSpacing: '-0.5px' },
+  subtitle: { color: '#64748b', marginBottom: '36px', fontSize: '15px', fontWeight: '500' },
+  
+  methodList: { display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '32px' },
+  methodCard: { 
+    display: 'flex', alignItems: 'center', padding: '20px', 
+    border: '1px solid', borderRadius: '18px', cursor: 'pointer', 
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', 
+    justifyContent: 'space-between', textAlign: 'left'
+  },
+  iconBox: { 
+    fontSize: '22px', marginRight: '16px', 
+    background: 'rgba(255,255,255,0.03)', width: '52px', height: '52px', 
+    display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '14px',
+    border: '1px solid rgba(255,255,255,0.05)'
+  },
   methodInfo: { display: 'flex', flexDirection: 'column', flex: 1 },
-  methodTitle: { fontWeight: '700', fontSize: '16px', color: '#1a1a1a' },
-  methodDesc: { fontSize: '13px', color: '#888' },
-  summaryBox: { background: '#f9f9f9', padding: '20px', borderRadius: '16px', marginBottom: '32px' },
-  totalRow: { display: 'flex', justifyContent: 'space-between', fontWeight: '800', fontSize: '18px', color: '#000' },
-  payBtn: { width: '100%', padding: '18px', background: '#000', color: '#fff', border: 'none', borderRadius: '16px', fontSize: '16px', fontWeight: '700', transition: '0.3s' }
+  methodTitle: { fontWeight: '700', fontSize: '16px', color: '#f8fafc' },
+  methodDesc: { fontSize: '12px', color: '#64748b', marginTop: '2px' },
+  
+  radioOuter: { 
+    width: '20px', height: '20px', borderRadius: '50%', 
+    border: '2px solid rgba(255,255,255,0.1)', display: 'flex', 
+    alignItems: 'center', justifyContent: 'center' 
+  },
+  radioInner: { width: '10px', height: '10px', borderRadius: '50%', background: '#3b82f6' },
+
+  summaryBox: { 
+    background: 'rgba(255,255,255,0.02)', padding: '24px', 
+    borderRadius: '20px', marginBottom: '32px', border: '1px solid rgba(255,255,255,0.05)' 
+  },
+  totalRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  totalLabel: { color: '#94a3b8', fontSize: '14px', fontWeight: '600' },
+  totalValue: { color: '#fff', fontWeight: '900', fontSize: '22px' },
+
+  payBtn: { 
+    width: '100%', padding: '20px', border: 'none', 
+    borderRadius: '18px', fontSize: '16px', fontWeight: '800', 
+    transition: 'all 0.3s ease', letterSpacing: '0.5px' 
+  },
+  securityFooter: { 
+    display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '24px' 
+  },
+  secureBadge: { fontSize: '11px', color: '#475569', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }
 };
 
 export default PaymentOptions;

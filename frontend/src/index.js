@@ -8,14 +8,20 @@ import App from "./App";
 import { CartProvider } from "./context/cartContext";
 import { UserProvider } from "./context/UserContext";
 
-// Global Styles (recommended)
+// Global Styles
 import "./index.css";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 
 root.render(
   <React.StrictMode>
-    <BrowserRouter>
+    {/* ✅ SILENCE FUTURE FLAG WARNINGS HERE */}
+    <BrowserRouter 
+      future={{ 
+        v7_startTransition: true, 
+        v7_relativeSplatPath: true 
+      }}
+    >
       <UserProvider>
         <CartProvider>
           <App />

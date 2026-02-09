@@ -1,0 +1,15 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Install dependencies first (cached layer)
+COPY package*.json ./
+RUN npm install
+
+# We do NOT copy the source code here because 
+# the docker-compose volume handles it.
+
+EXPOSE 3000
+
+# Start the React development server
+CMD ["npm", "start"]

@@ -1,0 +1,35 @@
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Build outputs
+dist/
+build/
+bin/
+out/
+target/
+*.exe
+*.dll
+
+# Cache and temporary files
+.eslintcache
+.cache/
+.DS_Store
+Thumbs.db
+*.log
+
+# Docker specific
+.docker/
+# Optional: Ignore uploads so your Git stays small
+backend/uploads/
+
+# IDE specific
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Database & Environment
+*.sql
+.env
+.env.local

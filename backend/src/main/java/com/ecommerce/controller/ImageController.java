@@ -12,7 +12,7 @@ import java.nio.file.Paths;
 
 @RestController
 @RequestMapping("/images")
-@CrossOrigin("*")
+// @CrossOrigin("*")
 public class ImageController {
 
     private final Path imageDir = Paths.get("uploads");

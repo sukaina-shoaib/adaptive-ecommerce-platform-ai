@@ -9,7 +9,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/inbox")
-@CrossOrigin(origins = "*")
+// @CrossOrigin(origins = "*")
 public class InboxController {
 
     private final InboxNotificationRepository repo;

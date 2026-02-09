@@ -1,5 +1,0 @@
-com\ecommerce\strategy\RecommendationStrategyTest.class
-com\ecommerce\decorator\ProductDecoratorTest.class
-com\ecommerce\factory\NotificationFactoryTest.class
-com\ecommerce\service\ProductServiceTest.class
-com\ecommerce\observer\InventoryObserverTest.class

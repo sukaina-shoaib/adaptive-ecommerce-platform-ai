@@ -18,30 +18,36 @@ function App() {
 
   return (
     <>
-      {/* 1. Header receives products for live filtering (suggestions) */}
+      {/* 1. Header handles live suggestions via allProducts */}
       <Header 
         products={allProducts} 
         onSearchTriggered={(q) => setSearchQuery(q)} 
       />
 
-      <Routes>
-        {/* 2. HomePage fetches products and shares them back up */}
-        <Route path="/" element={
-          <HomePage 
-            searchQuery={searchQuery} 
-            onProductsLoaded={setAllProducts} 
-          />
-        } />
-        <Route path="/admin" element={<AdminPortal />} />
-        <Route path="/cart" element={<CartPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/payment" element={<PaymentOptions />} />
-        <Route path="/orders/:id" element={<OrderDetailsPage />} />
-        <Route path="/inbox" element={<InboxPage />} />
-        <Route path="/Orderpage" element={<OrderPage />} />
-        <Route path="/order-success" element={<OrderSuccess />} />
-      </Routes>
+      {/* Main Content Area */}
+      <main style={{ minHeight: "80vh" }}>
+        <Routes>
+          {/* Home: Fetches products and syncs with Header via onProductsLoaded */}
+          <Route path="/" element={
+            <HomePage 
+              searchQuery={searchQuery} 
+              onProductsLoaded={setAllProducts} 
+            />
+          } />
+          
+          <Route path="/admin" element={<AdminPortal />} />
+          <Route path="/cart" element={<CartPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/payment" element={<PaymentOptions />} />
+          <Route path="/orders/:id" element={<OrderDetailsPage />} />
+          <Route path="/inbox" element={<InboxPage />} />
+          <Route path="/Orderpage" element={<OrderPage />} />
+          <Route path="/order-success" element={<OrderSuccess />} />
+        </Routes>
+      </main>
+
+
     </>
   );
 }

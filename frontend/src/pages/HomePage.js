@@ -5,70 +5,72 @@ import ProductGrid from "../components/ProductGrid";
 import ProductDetails from "../components/ProductDetails";
 import { api } from "../services/Api";
 import { addAiScores } from "../services/ai";
+import { connectInventory } from "../services/realtime"; 
 
-/**
- * HomePage Component
- * Manages the main product feed, AI ranking, and dual-filter logic.
- */
 export default function HomePage({ searchQuery, onProductsLoaded }) {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [selected, setSelected] = useState(null);
   const [activeCategory, setActiveCategory] = useState("ALL");
+  const [isDataLoading, setIsDataLoading] = useState(true);
 
-  // ✅ LOGIC: If a user types in the search bar, automatically reset category to "ALL"
-  // This prevents the "No results found" error when searching across categories.
-  useEffect(() => {
-    if (searchQuery && searchQuery.trim() !== "") {
-      setActiveCategory("ALL");
-    }
-  }, [searchQuery]);
+  // Helper to format raw product data from API
+  const normalizeProduct = (p) => ({
+    ...p,
+    price: Number(p.currentPrice || p.price || 0),
+    basePrice: Number(p.basePrice || p.currentPrice || p.price || 0),
+    stock: p.stock || 0,
+    imageUrl: p.image_url || p.imageUrl,
+  });
 
+  // 1. INITIAL FETCH
   useEffect(() => {
-    /* ---------- INITIAL DATA LOAD ---------- */
+    setIsDataLoading(true);
     api.get("/products")
       .then(async (res) => {
-        // Normalize product data for consistent UI rendering
-        const normalized = res.data.map((p) => ({
-          ...p,
-          price: Number(p.currentPrice || p.price || 0),
-          basePrice: Number(p.basePrice || p.currentPrice || p.price || 0),
-          stock: p.stock || 0,
-          imageUrl: p.image_url || p.imageUrl,
-        }));
-
-        try {
-          // Apply local AI Scoring (TensorFlow.js)
-          const scored = await addAiScores(normalized);
-          setProducts(scored);
-          // Sync with App.js for Header suggestions
-          if (onProductsLoaded) onProductsLoaded(scored);
-        } catch (err) {
-          console.error("AI Layer failed, using raw data", err);
-          setProducts(normalized);
-          if (onProductsLoaded) onProductsLoaded(normalized);
-        }
+        const normalized = res.data.map(normalizeProduct);
+        const scored = await addAiScores(normalized);
+        setProducts(scored);
+        if (onProductsLoaded) onProductsLoaded(scored);
       })
-      .catch((err) => console.error("Product fetch failed:", err));
+      .catch((err) => console.error("Product fetch failed:", err))
+      .finally(() => setIsDataLoading(false));
 
-    // Load available categories
     api.get("/products/categories")
       .then((res) => setCategories(res.data))
       .catch((err) => console.error("Category fetch failed:", err));
   }, []);
 
-  /* ---------- ADAPTIVE FILTER & SEARCH LOGIC ---------- */
+  // 2. REAL-TIME OBSERVER SYNC
+  useEffect(() => {
+    const disconnect = connectInventory((updatedProduct) => {
+      console.log("🚀 Real-time Update Received:", updatedProduct);
+      
+      const normalized = normalizeProduct(updatedProduct);
+
+      setProducts((prevProducts) => {
+        const newItems = prevProducts.map((p) => 
+          p.id === normalized.id ? { ...p, ...normalized } : p
+        );
+        
+        // Re-run AI ranking as price/stock changes affect value
+        addAiScores(newItems).then(scored => setProducts(scored));
+        return newItems;
+      });
+
+      setSelected(prev => (prev?.id === normalized.id ? normalized : prev));
+    });
+
+    return () => disconnect(); 
+  }, []);
+
   const filtered = useMemo(() => {
     let list = [...products];
-
-    // 1. Filter by Category (only if search hasn't reset it)
     if (activeCategory !== "ALL") {
       list = list.filter(p => 
         String(p.category || "").toLowerCase() === String(activeCategory).toLowerCase()
       );
     }
-
-    // 2. Filter by Search Query
     if (searchQuery && searchQuery.trim() !== "") {
       const term = searchQuery.toLowerCase();
       list = list.filter(p => 
@@ -76,45 +78,46 @@ export default function HomePage({ searchQuery, onProductsLoaded }) {
         (p.category && p.category.toLowerCase().includes(term))
       );
     }
-
-    // 3. Sort by AI Score (Recommended items first)
     return list.sort((a, b) => (b.aiScore || 0) - (a.aiScore || 0));
   }, [products, activeCategory, searchQuery]);
 
   return (
     <div style={styles.container}>
-      {/* Dynamic Hero Title */}
-      <Hero 
-        products={filtered.slice(0, 5)} 
-        onSelect={setSelected} 
-        title={searchQuery ? `Global Results for "${searchQuery}"` : `${activeCategory} Collection`}
-      />
-
-      
+      <div style={styles.ambientGlow}></div>
+      <div style={styles.heroWrapper}>
+        <Hero 
+          onSelect={setSelected} 
+          title={searchQuery ? `Results for "${searchQuery}"` : `${activeCategory} Collection`}
+        />
+      </div>
 
       <div style={styles.mainLayout}>
-        {/* LEFT: Sticky Category Navigation */}
         <aside style={styles.sidebar}>
-          <CategorySidebar 
-            categories={categories} 
-            active={activeCategory} 
-            onPick={setActiveCategory} 
-          />
+          <div style={styles.sidebarLabel}>categories</div>
+          <CategorySidebar categories={categories} active={activeCategory} onPick={setActiveCategory} />
         </aside>
 
-        {/* CENTER: Main Product Grid */}
         <main style={styles.gridSection}>
+          <div style={styles.gridHeader}>
+            <h3 style={styles.sectionTitle}>
+              {activeCategory === "ALL" ? "Marketplace" : activeCategory}
+              <span style={styles.countBadge}>{filtered.length} items</span>
+            </h3>
+            <div style={styles.aiFilterLabel}>⚡ AI Ranked</div>
+          </div>
           <ProductGrid products={filtered} onSelect={setSelected} />
         </main>
 
-        {/* RIGHT: Sticky Live Product View */}
         <aside style={styles.detailsSection}>
           {selected ? (
-            <ProductDetails product={selected} />
+            <div className="fade-in" style={styles.detailsContainer}>
+               <ProductDetails product={selected} />
+            </div>
           ) : (
             <div style={styles.emptyDetails}>
-              <div style={styles.emptyIcon}>🔍</div>
-              <p style={styles.emptyText}>Select a product to view the AI Match details</p>
+              <div style={styles.emptyIcon}>✨</div>
+              <p style={styles.emptyHeading}>Intelligent View</p>
+              <p style={styles.emptyText}>Select a product to analyze real-time data.</p>
             </div>
           )}
         </aside>
@@ -123,48 +126,22 @@ export default function HomePage({ searchQuery, onProductsLoaded }) {
   );
 }
 
-/* ---------------- PROFESSIONAL STYLING ---------------- */
-
 const styles = {
-  container: { 
-    padding: "0 40px", 
-    maxWidth: "1600px", 
-    margin: "0 auto", 
-    background: "#fcfcfc",
-    minHeight: "100vh"
-  },
-  mainLayout: { 
-    display: "flex", 
-    marginTop: "40px", 
-    gap: "30px", 
-    alignItems: "flex-start" 
-  },
-  sidebar: { 
-    width: "250px", 
-    position: "sticky", 
-    top: "100px",
-    height: "fit-content"
-  },
-  gridSection: { 
-    flex: 1, 
-    minHeight: "500px" 
-  },
-  detailsSection: { 
-    width: "380px", 
-    position: "sticky", 
-    top: "100px",
-    height: "fit-content"
-  },
-  emptyDetails: { 
-    padding: "60px 30px", 
-    background: "#fff", 
-    borderRadius: "28px", 
-    border: "2px dashed #e2e8f0", 
-    textAlign: "center",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center"
-  },
-  emptyIcon: { fontSize: "40px", marginBottom: "15px", opacity: 0.3 },
-  emptyText: { color: "#94a3b8", fontSize: "14px", fontWeight: "500", lineHeight: "1.5" }
+    container: { padding: "100px 40px 60px", maxWidth: "1600px", margin: "0 auto", background: "#0f172a", minHeight: "100vh", position: 'relative', overflow: 'hidden' },
+    ambientGlow: { position: 'absolute', top: '-10%', left: '30%', width: '40vw', height: '40vh', background: 'radial-gradient(circle, rgba(37, 99, 235, 0.1) 0%, transparent 70%)', zIndex: 0, pointerEvents: 'none' },
+    heroWrapper: { position: 'relative', zIndex: 1, marginBottom: '20px' },
+    mainLayout: { display: "flex", marginTop: "40px", gap: "32px", alignItems: "flex-start", position: 'relative', zIndex: 1 },
+    sidebar: { width: "240px", position: "sticky", top: "100px", height: "fit-content", background: "rgba(255, 255, 255, 0.03)", borderRadius: "20px", padding: "20px", border: "1px solid rgba(255, 255, 255, 0.08)", backdropFilter: 'blur(10px)' },
+    sidebarLabel: { fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '20px', paddingLeft: '10px' },
+    gridSection: { flex: 1, minHeight: "500px" },
+    gridHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', padding: '0 8px' },
+    sectionTitle: { fontSize: '24px', color: '#fff', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '12px' },
+    countBadge: { fontSize: '12px', background: 'rgba(255,255,255,0.1)', padding: '4px 10px', borderRadius: '8px', color: '#94a3b8' },
+    aiFilterLabel: { fontSize: '12px', fontWeight: '700', color: '#3b82f6', background: 'rgba(59, 130, 246, 0.1)', padding: '6px 14px', borderRadius: '10px' },
+    detailsSection: { width: "380px", position: "sticky", top: "100px", height: "fit-content" },
+    detailsContainer: { animation: 'fadeIn 0.4s ease-out' },
+    emptyDetails: { padding: "80px 30px", background: "rgba(255, 255, 255, 0.03)", borderRadius: "32px", border: "1px solid rgba(255, 255, 255, 0.08)", textAlign: "center", backdropFilter: 'blur(10px)' },
+    emptyIcon: { fontSize: "42px", marginBottom: "20px", opacity: 0.5 },
+    emptyHeading: { color: "#fff", fontSize: "18px", fontWeight: "700", marginBottom: "8px" },
+    emptyText: { color: "#64748b", fontSize: "14px", fontWeight: "500", lineHeight: "1.6" }
 };

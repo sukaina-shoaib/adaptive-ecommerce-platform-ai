@@ -1,6 +1,6 @@
 package com.ecommerce.service;
 
-import com.ecommerce.decorator.*; // ProductView is inside this package
+import com.ecommerce.decorator.*;
 import com.ecommerce.model.Product;
 import com.ecommerce.observer.InventoryManager;
 import com.ecommerce.observer.PriceManager;
@@ -41,6 +41,7 @@ public class ProductService {
     public ProductService(ProductRepository productRepo, SimpMessagingTemplate ws) {
         this.productRepo = productRepo;
         this.ws = ws;
+        // Registering the PriceManager to watch for inventory changes
         this.inventoryManager.attach(new PriceManager());
     }
 
@@ -70,20 +71,15 @@ public class ProductService {
        ADMIN PORTAL LOGIC
     -------------------------------------------------- */
 
-    /**
-     * Requirement: Admin can add new products.
-     */
     @Transactional
     public Product saveProduct(Product product) {
+        // Initial check: if stock is high, apply discount before first save
+        inventoryManager.notifyAllObservers(product);
         Product saved = productRepo.save(product);
         ws.convertAndSend("/topic/inventory", decorate(saved));
         return saved;
     }
 
-    /**
-     * Requirement: Admin can apply manual discounts.
-     * Uses BigDecimal arithmetic for financial accuracy.
-     */
     @Transactional
     public void applyManualDiscount(Long id, Double percentage) {
         Product p = productRepo.findById(id)
@@ -94,29 +90,25 @@ public class ProductService {
         
         p.setCurrentPrice(p.getBasePrice().subtract(discountAmount));
         
-        productRepo.save(p);
-        inventoryManager.notifyAllObservers(p);
-        ws.convertAndSend("/topic/inventory", decorate(p));
+        // Save the manual update
+        Product saved = productRepo.save(p);
+        ws.convertAndSend("/topic/inventory", decorate(saved));
     }
 
-    /**
-     * Requirement: Admin can delete products from the database.
-     * Fixes: Compilation Error "cannot find symbol method deleteProduct"
-     */
     @Transactional
     public void deleteProduct(Long id) {
         if (!productRepo.existsById(id)) {
             throw new RuntimeException("Product not found with id: " + id);
         }
         productRepo.deleteById(id);
-        
-        // Broadcast deletion signal to any open Admin Portals
         ws.convertAndSend("/topic/inventory", "DELETED:" + id);
     }
 
     /* --------------------------------------------------
-       STOCK MANAGEMENT
+       STOCK MANAGEMENT & OBSERVER TRIGGER
     -------------------------------------------------- */
+
+    
 
     @Transactional
     public void reduceStock(Long productId, int qty) {
@@ -127,9 +119,15 @@ public class ProductService {
         if (updated < 0) throw new RuntimeException("Insufficient stock");
 
         p.setStock(updated);
+        
+        // 1. Notify Observers: PriceManager will check stock and update p.currentPrice
         inventoryManager.notifyAllObservers(p);
-        productRepo.save(p);
-        ws.convertAndSend("/topic/inventory", decorate(p));
+        
+        // 2. Save the modified product (including potential price change)
+        Product saved = productRepo.save(p);
+        
+        // 3. Broadcast updated view
+        ws.convertAndSend("/topic/inventory", decorate(saved));
     }
 
     @Transactional
@@ -138,8 +136,14 @@ public class ProductService {
                 .orElseThrow(() -> new RuntimeException("Product not found"));
 
         p.setStock(newStock);
+        
+        // 1. Trigger the PriceManager logic
         inventoryManager.notifyAllObservers(p);
+        
+        // 2. PERSIST the changes made by the observer to the DB
         Product saved = productRepo.save(p);
+        
+        // 3. Create view and broadcast
         ProductView view = decorate(saved);
         ws.convertAndSend("/topic/inventory", view);
         return view;
@@ -148,6 +152,8 @@ public class ProductService {
     /* --------------------------------------------------
        DECORATOR PIPELINE
     -------------------------------------------------- */
+
+    
 
     private ProductView decorate(Product p) {
         ProductView v = new ProductView();
@@ -160,6 +166,7 @@ public class ProductService {
         v.image_url = p.getImageUrl();
         v.category = p.getCategory();
 
+        // Apply decorators (Low Stock, Mega Deal, AI Tips)
         for (ProductDecorator d : decorators) {
             v = d.apply(v);
         }

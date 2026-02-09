@@ -1,32 +1,58 @@
-version: '3.8'
+# version: '3.8'
+
 services:
   mysql-db:
     image: mysql:8.0
+    container_name: adaptive-ecommerce-mysql-db-1
     environment:
       MYSQL_DATABASE: adaptive_ecommerce
       MYSQL_ROOT_PASSWORD: rootpassword
     ports:
       - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
 
   redis-cache:
     image: redis:alpine
+    container_name: adaptive-ecommerce-redis-cache-1
     ports:
       - "6379:6379"
 
   backend:
     build: ./backend
+    container_name: adaptive-ecommerce-backend-1
     ports:
       - "8080:8080"
+    volumes:
+      - ./backend/uploads:/app/uploads
     depends_on:
       - mysql-db
       - redis-cache
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-db:3306/adaptive_ecommerce?useSSL=false&serverTimezone=UTC
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-db:3306/adaptive_ecommerce?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: rootpassword
       SPRING_DATA_REDIS_HOST: redis-cache
+      SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE: 10MB
+      SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE: 10MB
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev # Use the fast dev file
+    container_name: adaptive-ecommerce-frontend-1
     ports:
-      - "3000:80"
+      - "3000:3000" # React Dev Server default port
+    volumes:
+      - ./frontend:/app # This maps your code for instant updates
+      - /app/node_modules # Prevents Windows from overwriting Linux modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true # Essential for Windows-Docker sync
+      - WATCHPACK_POLLING=true
+      - WDS_SOCKET_PORT=0 # Fixes potential WebSocket refresh issues
+      
     depends_on:
       - backend
+
+volumes:
+  mysql_data:
