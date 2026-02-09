@@ -296,7 +296,6 @@ This project is licensed under the **MIT License**.
 
 **Sukaina Shoaib**
 **Habiba Azfar**
-
 Software Engineering Student
 Case Study – Software Design & Architecture
 
