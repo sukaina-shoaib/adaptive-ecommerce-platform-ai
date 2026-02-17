@@ -295,7 +295,6 @@ This project is licensed under the **MIT License**.
 ## 👩‍💻 Author
 
 **Sukaina Shoaib**
-**Habiba Azfar**
 Software Engineering Student
 Case Study – Software Design & Architecture
 
